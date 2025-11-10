@@ -35,9 +35,30 @@ class Robot:
         
         # --------------- BEGIN STUDENT SECTION ------------------------------------------------
         # TODO
-        frames = np.zeros((4, 4, len(dh_parameters)+1))
         
-        raise NotImplementedError("Implement forward kinematics")
+        T = np.eye(4) 
+
+        for i in range(len(thetas)):
+            linkLength, linkTwist, linkOffset, jointAngleOffset = dh_parameters[i]
+
+            jointAngle = thetas[i] + jointAngleOffset # getting offset 
+
+            cosTheta, sinTheta = np.cos(jointAngle), np.sin(jointAngle) # getting angles
+            cosAlpha, sinAlpha = np.cos(linkTwist), np.sin(linkTwist)
+
+            # DH convention for i to i+1
+            HCurrentToNext = np.array([
+                [cosTheta, -sinTheta * cosAlpha,  sinTheta * sinAlpha, linkLength * cosTheta],
+                [sinTheta,  cosTheta * cosAlpha, -cosTheta * sinAlpha, linkLength * sinTheta],
+                [0.0,       sinAlpha,             cosAlpha,             linkOffset],
+                [0.0,       0.0,                  0.0,                  1.0]
+            ])
+
+            T = T @ HCurrentToNext
+
+        return T
+
+        
         # --------------- END STUDENT SECTION --------------------------------------------------
     
     
