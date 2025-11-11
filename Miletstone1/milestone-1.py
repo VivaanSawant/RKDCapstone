@@ -2,6 +2,10 @@ import sys
 sys.path.append('../config')
 import numpy as np
 
+import sys
+sys.path.append('../config')
+import numpy as np
+
 class Robot:
     def __init__(self):
         """Initialize motion planner with robot controller"""
@@ -39,24 +43,28 @@ class Robot:
         T = np.eye(4) 
 
         for i in range(len(thetas)):
-            linkLength, linkTwist, linkOffset, jointAngleOffset = dh_parameters[i]
+            a, alpha, d, theta_offset = dh_parameters[i] # getting params
 
-            jointAngle = thetas[i] + jointAngleOffset # getting offset 
+            theta = thetas[i] + theta_offset # getting offset
 
-            cosTheta, sinTheta = np.cos(jointAngle), np.sin(jointAngle) # getting angles
-            cosAlpha, sinAlpha = np.cos(linkTwist), np.sin(linkTwist)
+            cosTheta, sinTheta = np.cos(theta), np.sin(theta) #angles
+            cosAlpha, sinAlpha = np.cos(alpha), np.sin(alpha) #angles
 
-            # DH convention for i to i+1
+            # modivied form
             HCurrentToNext = np.array([
-                [cosTheta, -sinTheta * cosAlpha,  sinTheta * sinAlpha, linkLength * cosTheta],
-                [sinTheta,  cosTheta * cosAlpha, -cosTheta * sinAlpha, linkLength * sinTheta],
-                [0.0,       sinAlpha,             cosAlpha,             linkOffset],
-                [0.0,       0.0,                  0.0,                  1.0]
+                [cosTheta, -sinTheta, 0.0, a],
+                [sinTheta * cosAlpha, cosTheta * cosAlpha, -sinAlpha, -d * sinAlpha],
+                [sinTheta * sinAlpha, cosTheta * sinAlpha,  cosAlpha,  d * cosAlpha],
+                [0.0, 0.0, 0.0, 1.0]
             ])
+            
 
             T = T @ HCurrentToNext
 
-        return T
+        
+        # --------------- END STUDENT SECTION --------------------------------------------------
+    
+    
 
         
     # --------------- END STUDENT SECTION --------------------------------------------------
