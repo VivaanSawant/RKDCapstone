@@ -38,11 +38,23 @@ class Robot:
             raise ValueError(f'Invalid number of joints: {thetas.shape[0]} found, expecting {self.dof}')
         
         # --------------- BEGIN STUDENT SECTION ------------------------------------------------
-        # TODO
+        dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
         
         T = np.eye(4) 
 
         for i in range(len(thetas)):
+            if(len(dh_parameters)<=0):
+                raise ValueError(f'Invalid size of dh_parameters: {len(dh_parameters)}')
+            if(len(thetas)<=0):
+                raise ValueError(f'Invalid size of thetas: {len(thetas)}')
             a, alpha, d, theta_offset = dh_parameters[i] # getting params
 
             theta = thetas[i] + theta_offset # getting offset
@@ -68,7 +80,7 @@ class Robot:
 
         
     # --------------- END STUDENT SECTION --------------------------------------------------
-def main():
+"""def main():
     #DH parameters for Franka Emika Panda robot
     thetas = np.array([0.02204015, -0.35898457, 0.02613999, -2.364214,
                     0.00274931,  2.04544125, 0.82331108])
@@ -101,7 +113,6 @@ def main():
 if __name__ == '__main__':
     main()
         #
-    """
     pose: 
 Tra: [0.44515306 0.0214124  0.36430572]
  Rot: [[ 0.99914764  0.00748049  0.04035864]
