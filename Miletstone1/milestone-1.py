@@ -61,7 +61,7 @@ class Robot:
 
             T = T @ HCurrentToNext
 
-        
+        return T
         # --------------- END STUDENT SECTION --------------------------------------------------
     
     
@@ -79,8 +79,8 @@ def main():
         [0.0,       0.0,        0.333,   0.0],
         [0.0,      -np.pi/2,    0.0,     0.0],
         [0.0,       np.pi/2,    0.316,   0.0],
-        [-0.0825,   np.pi/2,    0.0,     0.0],
-        [0.0825,   -np.pi/2,    0.384,   0.0],
+        [0.0825,   np.pi/2,    0.0,     0.0],
+        [-0.0825,   -np.pi/2,    0.384,   0.0],
         [0.0,       np.pi/2,    0.0,     0.0],
         [0.088,     np.pi/2,    0.2104, -np.pi/4]
     ])
@@ -95,7 +95,7 @@ def main():
     #     [0.0,         0.0,      0.107, 0.0]
     # ])  
     robot = Robot()
-    value = robot.forward_kinematcis(dh_parameters, thetas2)
+    value = robot.forward_kinematcis(dh_parameters, thetas)
     print(value)
 
 if __name__ == '__main__':
