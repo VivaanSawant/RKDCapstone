@@ -16,21 +16,69 @@ class Robot:
         self.accel_time = 0.5  # seconds
         self.decel_time = 0.5  # seconds
     
-    def forward_kinematics(self, dh_parameters, thetas):
+    def forward_kinematcis(self, dh_parameters, thetas):
         """
-        Compute forward kinematics
+        Compute foward kinematics
         
         Your implementation should:
         1. Compute transformation matrices for each frame using DH parameters
         2. Compute end-effector pose
+        
+        Parameters
+        ----------
+        dh_parameters: np.ndarray
+            DH parameters (you can choose to apply the offset to the tool flange, center of gripper, or the pen tip)
+        thetas : np.ndarray
+            All joint angles
+            
+        Returns
+        -------
+        np.ndarray
+            End-effector pose
         """
         if thetas.ndim != 1:
             raise ValueError('Expecting a 1D array of joint angles.')
+
         if thetas.shape[0] != self.dof:
             raise ValueError(f'Invalid number of joints: {thetas.shape[0]} found, expecting {self.dof}')
         
-        frames = np.zeros((4, 4, len(dh_parameters)+1))
-        raise NotImplementedError("Implement forward kinematics")
+        # --------------- BEGIN STUDENT SECTION ------------------------------------------------
+        dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
+        
+        T = np.eye(4) 
+
+        for i in range(len(thetas)):
+            if(len(dh_parameters)<=0):
+                raise ValueError(f'Invalid size of dh_parameters: {len(dh_parameters)}')
+            if(len(thetas)<=0):
+                raise ValueError(f'Invalid size of thetas: {len(thetas)}')
+            a, alpha, d, theta_offset = dh_parameters[i] # getting params
+
+            theta = thetas[i] + theta_offset # getting offset
+
+            cosTheta, sinTheta = np.cos(theta), np.sin(theta) #angles
+            cosAlpha, sinAlpha = np.cos(alpha), np.sin(alpha) #angles
+
+            # modivied form
+            HCurrentToNext = np.array([
+                [cosTheta, -sinTheta, 0.0, a],
+                [sinTheta * cosAlpha, cosTheta * cosAlpha, -sinAlpha, -d * sinAlpha],
+                [sinTheta * sinAlpha, cosTheta * sinAlpha,  cosAlpha,  d * cosAlpha],
+                [0.0, 0.0, 0.0, 1.0]
+            ])
+            
+
+            T = T @ HCurrentToNext
+
+        return T
 
     # ------------------------------------------------------------------------------------------
     # STUDENT EXTENSION: Linear Interpolation Trajectory (Lerp) and Trapezoidal Velocity Profile
@@ -85,16 +133,42 @@ class Robot:
         # t = np.linspace(0, 1, N)
         # traj = np.outer(t, q1 - q0) + q0
         #
+        
+        displacement = q1 - q0
         # To make smoother motion, implement trapezoidal velocity profile:
         T =  self.total_time
         accel_time = self.accel_time
         decel_time = self.decel_time
+        const_time = T - accel_time - decel_time
+        
+        time_samples = np.linspace(0, T, num_steps)
+        
+        traj = np.zeros((num_steps, 7)) # n, 7 shape
+        
+        scaling_factor = 1.0 / (const_time + 0.5 * accel_time + 0.5 * decel_time)
+        
+        for i, t in enumerate(time_samples):
+            
+            interp = 0.0;
+            
+            if(t <= accel_time):
+                interp = 0.5 * scaling_factor * (t**2 / accel_time)
+                #accelerating
+            elif(t <= accel_time + const_time):
+                #const velocity
+                interp = (0.5 * scaling_factor * accel_time) + scaling_factor * (t - accel_time)
+            else:
+                #d ecelerating
+                decline_time = t - (accel_time + const_time)
+                interp = (0.5 * scaling_factor * accel_time) + scaling_factor * const_time + scaling_factor * decline_time - 0.5 * scaling_factor * (decline_time**2 / decel_time)
+                
+            traj[i, :] = q0 + interp * displacement
+        
         #
         #
         # return traj
         # -------------------------------------------------------
         
-        raise NotImplementedError("Implement trapezoidal_trajectory")
 
 
     def plot_end_effector_trajectory(self, traj):
