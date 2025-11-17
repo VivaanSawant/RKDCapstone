@@ -234,8 +234,55 @@ class Robot:
         #     ...
         # return J
         # --------------------------------------------------------
+        dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
+        J = np.zeros((6, self.dof))
+        T = np.eye(4)
+        Ts = [T.copy()]            
+        for i in range(len(thetas)):
+            if(len(dh_parameters)<=0):
+                raise ValueError(f'Invalid size of dh_parameters: {len(dh_parameters)}')
+            if(len(thetas)<=0):
+                raise ValueError(f'Invalid size of thetas: {len(thetas)}')
+            a, alpha, d, theta_offset = dh_parameters[i] # getting params
 
-        raise NotImplementedError("Implement compute_jacobian_analytical")
+            theta = thetas[i] + theta_offset # getting offset
+
+            cosTheta, sinTheta = np.cos(theta), np.sin(theta) #angles
+            cosAlpha, sinAlpha = np.cos(alpha), np.sin(alpha) #angles
+
+            # modivied form
+            H_i = np.array([
+                [cosTheta, -sinTheta, 0.0, a],
+                [sinTheta * cosAlpha, cosTheta * cosAlpha, -sinAlpha, -d * sinAlpha],
+                [sinTheta * sinAlpha, cosTheta * sinAlpha,  cosAlpha,  d * cosAlpha],
+                [0.0, 0.0, 0.0, 1.0]
+            ])
+            
+
+            T = T @ H_i
+            Ts.append(T.copy())
+
+        origins = []
+        z_axes = []
+        for T_i in Ts:
+            origins.append(T_i[0:3, 3])
+            z_axes.append(T_i[0:3, 2])
+            
+
+        o_n = origins[-1]
+        for i in range(self.dof):
+            J[0:3, i] = np.cross(z_axes[i], o_n - origins[i])
+            J[3:6, i] = z_axes[i]
+
+        return J
 
     # ---------------------------------------------------------------
     # TODO: Compute the Jacobian numerically
