@@ -186,7 +186,7 @@ class Robot:
 
         #TODO: Compute end-effector positions along the trajectory
         for q in traj:
-            ee_pose = ... # Compute FK using self.forward_kinematics
+            ee_pose = self.forward_kinematics(self.dh_parameters, q) # Compute FK using self.forward_kinematics
             ee_positions.append(ee_pose[:3, 3])  # Extract XYZ position
 
         ee_positions = np.array(ee_positions)
