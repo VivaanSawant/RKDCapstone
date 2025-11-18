@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from Miletstone2.FrankaRobot16384 import Franka16384
 
 class Robot:
     def __init__(self):
@@ -16,7 +17,7 @@ class Robot:
         self.accel_time = 0.5  # seconds
         self.decel_time = 0.5  # seconds
     
-    def forward_kinematcis(self, dh_parameters, thetas):
+    def forward_kinematics(self, dh_parameters, thetas):
         """
         Compute foward kinematics
         
@@ -149,7 +150,7 @@ class Robot:
         
         for i, t in enumerate(time_samples):
             
-            interp = 0.0;
+            interp = 0.0
             
             if(t <= accel_time):
                 interp = 0.5 * scaling_factor * (t**2 / accel_time)
@@ -166,7 +167,7 @@ class Robot:
         
         #
         #
-        # return traj
+        return traj
         # -------------------------------------------------------
         
 
@@ -186,6 +187,8 @@ class Robot:
 
         #TODO: Compute end-effector positions along the trajectory
         for q in traj:
+            #print(len(traj))
+            #q = traj[i]
             ee_pose = self.forward_kinematics(self.dh_parameters, q) # Compute FK using self.forward_kinematics
             ee_positions.append(ee_pose[:3, 3])  # Extract XYZ position
 
@@ -349,3 +352,74 @@ class Robot:
             J[3:6, i] = dtheta
         return J
         #raise NotImplementedError("Implement compute_jacobian_numerical")
+def main():
+    traj = np.array([[0.02204015, -0.35898457,  0.02613999, -2.364214, 0.00274931,  2.04544125, 0.82331108],
+    [-1.41190431, -1.12662768,  1.05950991, -2.3611671,0.92804899,  1.57607987,  0.0403548 ],
+    [-0.07447891, -0.03003863, -0.18793599, -2.47069798, 0.09206394, 2.57397382, 0.39425526]
+    ])
+    
+    q0 = np.array([1.55361583e-02, 1.06624155e-01, 2.04122546e-02, 
+                            -2.00029706e+00, -3.49519799e-04,  2.06950945e+00,  8.05155261e-01])
+    q1 = np.array([ 0.17939389, -0.09461021,  0.13338035, -1.82398707,  0.12518016,
+                            1.6630852,1.07733918])
+    q2 = np.array([0.17105211,  0.01692119, -0.53377664, -1.89941006,  0.07431345,
+                            1.66426027,0.32460998])
+    q3 = np.array([ 1.25227339e-03,  3.42365366e-01, -1.37708134e-01, -2.05250528e+00,
+  1.64503783e-03,  2.33119797e+00,  7.79912524e-01])
+    
+    num_steps = int(10/0.02 +1) 
+    robot = Robot()
+    #robot.plot_end_effector_trajectory(traj)
+    traj_0_1 = robot.compute_joint_trajectory( q0, q1, num_steps)
+    traj_1_2 = robot.compute_joint_trajectory( q1, q2, num_steps)
+    traj_2_3 = robot.compute_joint_trajectory( q2, q3, num_steps)
+    traj_3_4 = robot.compute_joint_trajectory( q3, q0, num_steps)
+    franka = Franka16384()
+    franka.set_config(q0)
+    franka.follow_trajectory(traj_0_1)
+    franka.follow_trajectory(traj_1_2)
+    franka.follow_trajectory(traj_2_3)
+    franka.follow_trajectory(traj_3_4)
+
+
+
+if __name__ == '__main__':
+    main()
+    
+    
+    
+    
+    
+    """
+    First traj works 
+    [INFO] [1763507204.468936]: Velocity between steps 499 and 500: [8.73907902e-05 1.07324995e-04 6.02496509e-05 9.40319947e-05
+ 6.69491626e-05 2.16759600e-04 1.45164757e-04]
+[Franka16384] Trajectory execution complete.
+Traceback (most recent call last):
+  File "milestone-2.py", line 387, in <module>
+    main()
+  File "milestone-2.py", line 380, in main
+    franka.follow_trajectory(traj_1_2)
+  File "/home/student/Documents/frankapy/Miletstone2/FrankaRobot16384.py", line 85, in follow_trajectory
+    assert np.allclose(joints_traj[0], current_joint_state, atol=0.05), \
+AssertionError: Initial joint configuration does not match current state. Difference: [0.08562336 0.10822206 0.05949807 0.0932971  0.06886288 0.22225433
+ 0.16116457]
+
+
+
+    joints 4
+[ 1.25227339e-03  3.42365366e-01 -1.37708134e-01 -2.05250528e+00
+  1.64503783e-03  2.33119797e+00  7.79912524e-01]
+  
+  joints 3
+[ 0.17105211  0.01692119 -0.53377664 -1.89941006  0.07431345  1.66426027
+  0.32460998]
+  
+  joints 2: 
+[ 0.17939389 -0.09461021  0.13338035 -1.82398707  0.12518016  1.6630852
+  1.07733918]
+  
+  joints 1: 
+[ 1.55361583e-02  1.06624155e-01  2.04122546e-02 -2.00029706e+00
+ -3.49519799e-04  2.06950945e+00  8.05155261e-01]
+    """
