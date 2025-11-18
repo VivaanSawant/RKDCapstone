@@ -309,7 +309,7 @@ class Robot:
             raise ValueError(f"Expected {self.dof} joint angles, got {thetas.shape[0]}")
 
         # Compute base pose
-        T0 = ... # Compute FK using self.forward_kinematics
+        T0 = self.forward_kinematics(thetas)
         pos0 = T0[:3, 3]
         R0 = T0[:3, :3]
 
@@ -329,5 +329,23 @@ class Robot:
         #
         # Return the concatenated Jacobian.
         # --------------------------------------------------------
+        for i in range (self.dof):
+            thetasPerturbed = thetas.copy()
+            thetasPerturbed[i] += delta
 
-        raise NotImplementedError("Implement compute_jacobian_numerical")
+            T1 = self.forward_kinematics(thetasPerturbed)
+            pos1 = T1[:3, 3]
+            R1 = T1[:3, :3]
+            Pdifference = (pos1 - pos0) / delta # postion
+
+            Rerror = R0.T @ R1 # rototaion
+            dtheta = np.array([
+                Rerror[2, 1] - Rerror[1, 2],
+                Rerror[0, 2] - Rerror[2, 0],
+                Rerror[1, 0] - Rerror[0, 1]
+            ]) / (2 * delta)
+
+            J[0:3, i] = Pdifference
+            J[3:6, i] = dtheta
+        return J
+        #raise NotImplementedError("Implement compute_jacobian_numerical")
