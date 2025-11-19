@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Miletstone2.FrankaRobot16384 import Franka16384
+#from Miletstone2.FrankaRobot16384 import Franka16384
 
 class Robot:
     def __init__(self):
@@ -9,7 +9,15 @@ class Robot:
 
         # Example DH parameters for Franka Emika 7-DOF robot
         # TODO: Fill in with actual DH parameters copy from milestone 1
-        self.dh_parameters = ...  # Fill in with actual DH parameters
+        self.dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
 
         # for acceleration, deceleration phases
         #TODO: You may adjust these parameters as needed
@@ -266,7 +274,7 @@ class Robot:
             raise ValueError(f"Expected {self.dof} joint angles, got {thetas.shape[0]}")
 
         # Compute base pose
-        T0 = self.forward_kinematics(thetas)
+        T0 = self.forward_kinematics(self.dh_parameters, thetas)
         pos0 = T0[:3, 3]
         R0 = T0[:3, :3]
 
@@ -290,7 +298,7 @@ class Robot:
             thetasPerturbed = thetas.copy()
             thetasPerturbed[i] += delta
 
-            T1 = self.forward_kinematics(thetasPerturbed)
+            T1 = self.forward_kinematics(self.dh_parameters, thetasPerturbed)
             pos1 = T1[:3, 3]
             R1 = T1[:3, :3]
             Pdifference = (pos1 - pos0) / delta # postion
@@ -306,10 +314,7 @@ class Robot:
             J[3:6, i] = dtheta
         return J
         #raise NotImplementedError("Implement compute_jacobian_numerical")
-        def flashlight(num_steps):
-            q_home = np.array([])
-            q_above_pick_place = np.array([])
-            q_pick_place = np.array([])
+        def flashlight(q_home, q_above_pick_place,q_pick_place, num_steps):
 
             traj_home_above = robot.compute_joint_trajectory( q_home, q_above_pick_place, num_steps)            
             #open grippers
@@ -437,6 +442,7 @@ def main():
     ])
     robot.plot_end_effector_trajectory(traj)'''
 
+    '''
     #Moving the robot in a loop (4 positions)
     q0 = np.array([-0.0819264,  -0.13599538, 0.0575315,  -2.36497335,  0.0082773,   2.2991974, 0.67502163])
     q1 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
@@ -457,7 +463,19 @@ def main():
     franka.follow_trajectory(traj_3_4)
 
     #flashlight test
-    robot.flashlight(num_steps)
+    q_home = np.array([])
+    q_above_pick_place = np.array([])
+    q_pick_place = np.array([])
+    robot.flashlight(num_steps) 
+    '''
+
+    thetas = np.array([0,0,0,0,0,0,0])
+    thetas2 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
+    numerical_jacobian = robot.compute_jacobian_numerical(thetas, delta=1e-4)
+    analytical_jacobian = robot.compute_jacobian_analytical(thetas)
+    print(f"numerical jacobian: {numerical_jacobian}")
+    print(f"analytical jacobian: {analytical_jacobian}")
+
     
     
     
