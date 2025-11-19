@@ -461,21 +461,22 @@ def main():
     franka.follow_trajectory(traj_1_2)
     franka.follow_trajectory(traj_2_3)
     franka.follow_trajectory(traj_3_4)
-
+    '''
+    
     #flashlight test
     q_home = np.array([])
     q_above_pick_place = np.array([])
     q_pick_place = np.array([])
     robot.flashlight(num_steps) 
+    
     '''
-
     thetas = np.array([0,0,0,0,0,0,0])
     thetas2 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
     numerical_jacobian = robot.compute_jacobian_numerical(thetas, delta=1e-4)
     analytical_jacobian = robot.compute_jacobian_analytical(thetas)
     print(f"numerical jacobian: {numerical_jacobian}")
     print(f"analytical jacobian: {analytical_jacobian}")
-
+    '''
     
     
     
