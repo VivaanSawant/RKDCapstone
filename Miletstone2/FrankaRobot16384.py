@@ -55,7 +55,7 @@ class Franka16384:
     # Trajectory execution
     # -----------------------------
 
-    def follow_trajectory(self, joints_traj, T=5):
+    def follow_trajectory(self, joints_traj, T=2):
         """
         Follow a trajectory based on a min-jerk interpolation of joint angles.
         joints_traj: A list of joint configurations.

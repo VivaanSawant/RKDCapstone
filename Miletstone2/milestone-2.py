@@ -96,7 +96,7 @@ class Robot:
 
         # Time samples: IMPORTANT — endpoint=False
         dt = 0.02
-        num_steps = int(T / dt)
+        # num_steps = int(T / dt)
         time_samples = np.linspace(0, T, num_steps, endpoint=False)
 
         # Compute vmax from the trapezoid area = 1 condition
@@ -317,8 +317,9 @@ def main():
     q2 = np.array([-0.20558467, -0.20446108, -0.02575163, -2.63800154,  0.00706992,  2.55150997, 0.69112535])
     q3 = np.array([-0.11125982, -0.3682046,   0.0764298,  -2.58438404,  0.00711509,  2.82580872, 0.70104034])
     
-    num_steps = int(2/0.02) 
+    
     robot = Robot()
+    num_steps = int(robot.total_time/0.02)
     #robot.plot_end_effector_trajectory(traj)
     traj_0_1 = robot.compute_joint_trajectory( q0, q1, num_steps)
     traj_1_2 = robot.compute_joint_trajectory( q1, q2, num_steps)
@@ -331,9 +332,9 @@ def main():
     # robot.forward_kinematics(test, q2)
     # robot.forward_kinematics(test, q3)
     franka.follow_trajectory(traj_0_1)
-    # franka.follow_trajectory(traj_1_2)
-    # franka.follow_trajectory(traj_2_3)
-    # franka.follow_trajectory(traj_3_4)
+    franka.follow_trajectory(traj_1_2)
+    franka.follow_trajectory(traj_2_3)
+    franka.follow_trajectory(traj_3_4)
 
 
 
