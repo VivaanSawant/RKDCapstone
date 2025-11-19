@@ -358,16 +358,12 @@ def main():
     [-0.07447891, -0.03003863, -0.18793599, -2.47069798, 0.09206394, 2.57397382, 0.39425526]
     ])
     
-    q0 = np.array([1.55361583e-02, 1.06624155e-01, 2.04122546e-02, 
-                            -2.00029706e+00, -3.49519799e-04,  2.06950945e+00,  8.05155261e-01])
-    q1 = np.array([ 0.17939389, -0.09461021,  0.13338035, -1.82398707,  0.12518016,
-                            1.6630852,1.07733918])
-    q2 = np.array([0.17105211,  0.01692119, -0.53377664, -1.89941006,  0.07431345,
-                            1.66426027,0.32460998])
-    q3 = np.array([ 1.25227339e-03,  3.42365366e-01, -1.37708134e-01, -2.05250528e+00,
-  1.64503783e-03,  2.33119797e+00,  7.79912524e-01])
+    q0 = np.array([-0.0819264,  -0.13599538, 0.0575315,  -2.36497335,  0.0082773,   2.2991974, 0.67502163])
+    q1 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
+    q2 = np.array([-0.20558467, -0.20446108, -0.02575163, -2.63800154,  0.00706992,  2.55150997, 0.69112535])
+    q3 = np.array([-0.11125982, -0.3682046,   0.0764298,  -2.58438404,  0.00711509,  2.82580872, 0.70104034])
     
-    num_steps = int(10/0.02 +1) 
+    num_steps = int(2/0.02) 
     robot = Robot()
     #robot.plot_end_effector_trajectory(traj)
     traj_0_1 = robot.compute_joint_trajectory( q0, q1, num_steps)
@@ -376,10 +372,14 @@ def main():
     traj_3_4 = robot.compute_joint_trajectory( q3, q0, num_steps)
     franka = Franka16384()
     franka.set_config(q0)
+    # test = np.eye(7,4)
+    # robot.forward_kinematics(test, q1)
+    # robot.forward_kinematics(test, q2)
+    # robot.forward_kinematics(test, q3)
     franka.follow_trajectory(traj_0_1)
-    franka.follow_trajectory(traj_1_2)
-    franka.follow_trajectory(traj_2_3)
-    franka.follow_trajectory(traj_3_4)
+    # franka.follow_trajectory(traj_1_2)
+    # franka.follow_trajectory(traj_2_3)
+    # franka.follow_trajectory(traj_3_4)
 
 
 
@@ -387,6 +387,22 @@ if __name__ == '__main__':
     main()
     
     
+
+
+
+    """
+    joints: 
+[-0.0819264,  -0.13599538, 0.0575315,  -2.36497335,  0.0082773,   2.2991974, 0.67502163]
+Enter a number: 2
+joints: 
+[-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088]
+Enter a number: 2
+joints: 
+[-0.20558467, -0.20446108, -0.02575163, -2.63800154,  0.00706992,  2.55150997, 0.69112535]
+Enter a number: 2
+joints: 
+[-0.11125982, -0.3682046,   0.0764298,  -2.58438404,  0.00711509,  2.82580872, 0.70104034]
+    """
     
     
     
