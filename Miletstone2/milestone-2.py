@@ -306,35 +306,57 @@ class Robot:
             J[3:6, i] = dtheta
         return J
         #raise NotImplementedError("Implement compute_jacobian_numerical")
+        def flashlight(num_steps):
+            q_home = np.array([])
+            q_above_pick_place = np.array([])
+            q_pick_place = np.array([])
+
+            franka.set_config(q_home)
+            traj_home_above = robot.compute_joint_trajectory( q_home, q_above_pick_place, num_steps)
+            #open grippers
+            traj_above_pick = robot.compute_joint_trajectory( q_above_pick_place, q_pick_place, num_steps)
+            #close grippers
+            traj_pick_above = robot.compute_joint_trajectory( q_pick_place, q_above_pick_place , num_steps)
+            traj_above_place = robot.compute_joint_trajectory( q_above_pick_place , q_pick_place, num_steps)
+            #open grippers
+            return
+
 def main():
+    robot = Robot()
+
+    '''
+    Plotting the trajectory:
     traj = np.array([[0.02204015, -0.35898457,  0.02613999, -2.364214, 0.00274931,  2.04544125, 0.82331108],
     [-1.41190431, -1.12662768,  1.05950991, -2.3611671,0.92804899,  1.57607987,  0.0403548 ],
     [-0.07447891, -0.03003863, -0.18793599, -2.47069798, 0.09206394, 2.57397382, 0.39425526]
     ])
-    
+    robot.plot_end_effector_trajectory(traj)'''
+
+    #Moving the robot in a loop (4 positions)
     q0 = np.array([-0.0819264,  -0.13599538, 0.0575315,  -2.36497335,  0.0082773,   2.2991974, 0.67502163])
     q1 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
     q2 = np.array([-0.20558467, -0.20446108, -0.02575163, -2.63800154,  0.00706992,  2.55150997, 0.69112535])
     q3 = np.array([-0.11125982, -0.3682046,   0.0764298,  -2.58438404,  0.00711509,  2.82580872, 0.70104034])
     
-    
-    robot = Robot()
     num_steps = int(robot.total_time/0.02)
-    #robot.plot_end_effector_trajectory(traj)
+    
     traj_0_1 = robot.compute_joint_trajectory( q0, q1, num_steps)
     traj_1_2 = robot.compute_joint_trajectory( q1, q2, num_steps)
     traj_2_3 = robot.compute_joint_trajectory( q2, q3, num_steps)
     traj_3_4 = robot.compute_joint_trajectory( q3, q0, num_steps)
     franka = Franka16384()
     franka.set_config(q0)
-    # test = np.eye(7,4)
-    # robot.forward_kinematics(test, q1)
-    # robot.forward_kinematics(test, q2)
-    # robot.forward_kinematics(test, q3)
     franka.follow_trajectory(traj_0_1)
     franka.follow_trajectory(traj_1_2)
     franka.follow_trajectory(traj_2_3)
     franka.follow_trajectory(traj_3_4)
+
+    #flashlight test
+    robot.flashlight(num_steps)
+    
+    
+    
+
 
 
 
