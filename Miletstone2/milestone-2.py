@@ -1,6 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
-#from Miletstone2.FrankaRobot16384 import Franka16384
+from Miletstone2.FrankaRobot16384 import Franka16384
+
+def wait_for_user(prompt="[Press 'n' for next, 'r' to retry, or 'q' to quit]: "):
+    """Pause execution and wait for valid user input."""
+    while True:
+        user_input = input(prompt).strip().lower()
+        if user_input in ['n', 'r', 'q']:
+            return user_input
+        print("Invalid input. Please press 'n', 'r', or 'q'.")
+
+
+
 
 class Robot:
     def __init__(self):
@@ -314,122 +325,123 @@ class Robot:
             J[3:6, i] = dtheta
         return J
         #raise NotImplementedError("Implement compute_jacobian_numerical")
-        def flashlight(q_home, q_above_pick_place,q_pick_place, num_steps):
-
-            traj_home_above = robot.compute_joint_trajectory( q_home, q_above_pick_place, num_steps)            
-            #open grippers
-            traj_above_pick = robot.compute_joint_trajectory( q_above_pick_place, q_pick_place, num_steps)
-            #close grippers
-            traj_pick_above = robot.compute_joint_trajectory( q_pick_place, q_above_pick_place , num_steps)
-            traj_above_place = robot.compute_joint_trajectory( q_above_pick_place , q_pick_place, num_steps)
-            #open grippers
-            print("\n[Step 1] Moving to home position...")
-            franka.set_config(q_home)
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.set_config(q_home)
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
-
-                
-            print("\n[Step 2] Moving to a position above the flashlight...")
-            franka.follow_trajectory(traj_home_above)
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.follow_trajectory(traj_home_above)
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
-            
-            print("\n[Step 3] Opening the grippers ...")
-            franka.open_gripper()
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.open_gripper()
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
+    def flashlight(self, q_home, q_above_pick_place, q_pick_place, num_steps):
+        robot = Robot()
+        franka = Franka16384()
+        traj_home_above = robot.compute_joint_trajectory( q_home, q_above_pick_place, num_steps)            
+        #open grippers
+        traj_above_pick = robot.compute_joint_trajectory( q_above_pick_place, q_pick_place, num_steps)
+        #close grippers
+        traj_pick_above = robot.compute_joint_trajectory( q_pick_place, q_above_pick_place , num_steps)
+        traj_above_place = robot.compute_joint_trajectory( q_above_pick_place , q_pick_place, num_steps)
+        #open grippers
+        print("\n[Step 1] Moving to home position...")
+        franka.set_config(q_home)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.set_config(q_home)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
 
             
-            print("\n[Step 4] Moving to pick up the flashlight...")
-            franka.follow_trajectory(traj_above_pick)
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.follow_trajectory(traj_above_pick)
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
+        print("\n[Step 2] Moving to a position above the flashlight...")
+        franka.follow_trajectory(traj_home_above)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.follow_trajectory(traj_home_above)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+        
+        print("\n[Step 3] Opening the grippers ...")
+        franka.open_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.open_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
 
-            print("\n[Step 5] Closing the grippers...")
-            franka.close_gripper()
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.close_gripper()
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
+        
+        print("\n[Step 4] Moving to pick up the flashlight...")
+        franka.follow_trajectory(traj_above_pick)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.follow_trajectory(traj_above_pick)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
 
-            print("\n[Step 6] Moving the flashlight up...")
-            franka.follow_trajectory(traj_pick_above)
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.follow_trajectory(traj_pick_above)
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
+        print("\n[Step 5] Closing the grippers...")
+        franka.close_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.close_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
 
-            print("\n[Step 7] Moving the flashlight back down...")
-            franka.follow_trajectory(traj_above_place)
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.follow_trajectory(traj_above_place)
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
+        print("\n[Step 6] Moving the flashlight up...")
+        franka.follow_trajectory(traj_pick_above)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.follow_trajectory(traj_pick_above)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
 
-            print("\n[Step 8] Opening the grippers ...")
-            franka.open_gripper()
-            while True:
-                user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
-                if user_choice == 'n':
-                    break
-                elif user_choice == 'r':
-                    print("[Retrying move to place pose...]")
-                    franka.open_gripper()
-                elif user_choice == 'q':
-                    print("[Exiting program]")
-                    return
+        print("\n[Step 7] Moving the flashlight back down...")
+        franka.follow_trajectory(traj_above_place)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.follow_trajectory(traj_above_place)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
 
-            return
+        print("\n[Step 8] Opening the grippers ...")
+        franka.open_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.open_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+
+        return
 
 def main():
     robot = Robot()
@@ -464,10 +476,14 @@ def main():
     '''
     
     #flashlight test
-    q_home = np.array([])
-    q_above_pick_place = np.array([])
-    q_pick_place = np.array([])
-    robot.flashlight(num_steps) 
+    num_steps = int(robot.total_time/0.02)
+    q_home = np.array([-0.00608366, -0.95394664, -0.03228957, -2.59348415, -0.00837678,  1.59325033,
+  0.76390718])
+    q_above_pick_place = np.array([-2.60259668e-03,  2.41709376e-01, -1.85602809e-03, -2.22746265e+00,
+ -7.81279907e-03,  2.42024084e+00,  7.84722198e-01])
+    q_pick_place = np.array([ 0.00482188,  0.42789345, -0.00878065, -2.25411856, -0.00964446,  2.63687885,
+  0.78377835])
+    robot.flashlight(q_home, q_above_pick_place, q_pick_place, num_steps) 
     
     '''
     thetas = np.array([0,0,0,0,0,0,0])
@@ -540,3 +556,41 @@ AssertionError: Initial joint configuration does not match current state. Differ
 [ 1.55361583e-02  1.06624155e-01  2.04122546e-02 -2.00029706e+00
  -3.49519799e-04  2.06950945e+00  8.05155261e-01]
     """
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+ANGLES FOR THE FLASHLIGHT TASK:
+
+
+home: 
+[-0.00608366, -0.95394664, -0.03228957, -2.59348415, -0.00837678,  1.59325033,
+  0.76390718]
+
+above1 
+[-2.60259668e-03,  2.41709376e-01, -1.85602809e-03, -2.22746265e+00,
+ -7.81279907e-03,  2.42024084e+00,  7.84722198e-01]
+
+pick
+[ 0.00482188,  0.42789345, -0.00878065, -2.25411856, -0.00964446,  2.63687885,
+  0.78377835]
+
+above2
+[ 0.09792095,  0.315963,    0.17234519, -2.16128569, -0.01907918,  2.47031701,
+  1.04222218]
+
+place
+[ 0.09401129,  0.51291985,  0.15605813, -2.07454963, -0.01909078,  2.47660728,
+  1.04198222]
+
+
+'''
