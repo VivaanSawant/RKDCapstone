@@ -85,88 +85,42 @@ class Robot:
     # STUDENT EXTENSION: Linear Interpolation Trajectory (Lerp) and Trapezoidal Velocity Profile
     # ----------------------------------------------------------------------------------------
     def compute_joint_trajectory(self, q0, q1, num_steps):
-        """
-        Compute an interpolation-based joint-space trajectory between q0 and q1.
-
-        Your implementation should:
-        1. Interpolate between q0 and q1 to generate intermediate waypoints
-        2. apply to achieve trapezoidal velocity or other smooth motion profiles
-
-        Parameters
-        ----------
-        q0, q1 : np.ndarray
-            Start and goal joint configurations (7x1 each)
-        num_steps : int
-            Number of waypoints to generate
-        
-        Returns
-        -------
-        np.ndarray
-            Trajectory as an array of shape (N, 7) containing interpolated
-            joint angles, where N is the number of waypoints.
-        
-        Notes
-        -----
-        - You may choose:
-            * total_time (e.g., 2.0 s)
-            * number of waypoints (e.g., 20)
-            * acceleration and deceleration durations (e.g., 0.5 s each)
-        - Start simple: use linear interpolation (LERP).
-        - Then extend it with trapezoidal.
-        """
         q0, q1 = np.array(q0), np.array(q1)
-        if q0.shape[0] != self.dof or q1.shape[0] != self.dof:
-            raise ValueError(f"Expecting joint vectors of length {self.dof}")
-
-
-        
-
-        # ---------------- BEGIN STUDENT SECTION ----------------
-        # TODO: Implement interpolation here
-        # 
-        # You are welcome to try any other interpolation methods as well. 
-        # Belkow is just a simple example to get you started.
-
-
-        # -------------------------------------------------------
-        # Example (simple linear interpolation):
-        # N = 20
-        # t = np.linspace(0, 1, N)
-        # traj = np.outer(t, q1 - q0) + q0
-        #
-        
         displacement = q1 - q0
-        # To make smoother motion, implement trapezoidal velocity profile:
-        T =  self.total_time
-        accel_time = self.accel_time
-        decel_time = self.decel_time
-        const_time = T - accel_time - decel_time
-        
-        time_samples = np.linspace(0, T, num_steps)
-        
-        traj = np.zeros((num_steps, 7)) # n, 7 shape
-        
-        scaling_factor = 1.0 / (const_time + 0.5 * accel_time + 0.5 * decel_time)
-        
+
+        # Timing from milestone
+        T = self.total_time
+        ta = self.accel_time       # 0.5
+        td = self.decel_time       # 0.5
+        tc = T - ta - td           # 1.0
+
+        # Time samples: IMPORTANT — endpoint=False
+        dt = 0.02
+        num_steps = int(T / dt)
+        time_samples = np.linspace(0, T, num_steps, endpoint=False)
+
+        # Compute vmax from the trapezoid area = 1 condition
+        vmax = 1.0 / (tc + 0.5*ta + 0.5*td)
+        a = vmax / ta
+        d = vmax / td
+
+        traj = np.zeros((num_steps, 7))
+
         for i, t in enumerate(time_samples):
-            
-            interp = 0.0
-            
-            if(t <= accel_time):
-                interp = 0.5 * scaling_factor * (t**2 / accel_time)
-                #accelerating
-            elif(t <= accel_time + const_time):
-                #const velocity
-                interp = (0.5 * scaling_factor * accel_time) + scaling_factor * (t - accel_time)
+
+            if t <= ta:
+                s = 0.5 * a * t**2
+
+            elif t <= ta + tc:
+                s = 0.5 * vmax * ta + vmax * (t - ta)
+
             else:
-                #d ecelerating
-                decline_time = t - (accel_time + const_time)
-                interp = (0.5 * scaling_factor * accel_time) + scaling_factor * const_time + scaling_factor * decline_time - 0.5 * scaling_factor * (decline_time**2 / decel_time)
-                
-            traj[i, :] = q0 + interp * displacement
-        
-        #
-        #
+                tdec = t - (ta + tc)
+                sbefore = 0.5 * vmax * ta + vmax * tc
+                s = sbefore + vmax * tdec - 0.5 * d * tdec**2
+
+            traj[i, :] = q0 + s * displacement
+
         return traj
         # -------------------------------------------------------
         
