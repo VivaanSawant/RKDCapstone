@@ -107,18 +107,14 @@ class Robot:
         q0, q1 = np.array(q0), np.array(q1)
         displacement = q1 - q0
 
-        # Timing from milestone
         T = self.total_time
-        ta = self.accel_time       # 0.5
-        td = self.decel_time       # 0.5
-        tc = T - ta - td           # 1.0
+        ta = self.accel_time # 0.5
+        td = self.decel_time # 0.5
+        tc = T - ta - td     # 1.0 (according to writeup)
 
-        # Time samples: IMPORTANT — endpoint=False
-        dt = 0.02
-        # num_steps = int(T / dt)
-        time_samples = np.linspace(0, T, num_steps, endpoint=False)
+        # Use endpoint = true
+        time_samples = np.linspace(0, T, num_steps, endpoint=True)
 
-        # Compute vmax from the trapezoid area = 1 condition
         vmax = 1.0 / (tc + 0.5*ta + 0.5*td)
         a = vmax / ta
         d = vmax / td
@@ -129,18 +125,16 @@ class Robot:
 
             if t <= ta:
                 s = 0.5 * a * t**2
-
             elif t <= ta + tc:
                 s = 0.5 * vmax * ta + vmax * (t - ta)
-
             else:
                 tdec = t - (ta + tc)
                 sbefore = 0.5 * vmax * ta + vmax * tc
                 s = sbefore + vmax * tdec - 0.5 * d * tdec**2
-
             traj[i, :] = q0 + s * displacement
 
         return traj
+
         # -------------------------------------------------------
         
 
