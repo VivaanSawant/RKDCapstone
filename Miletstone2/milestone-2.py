@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Miletstone2.FrankaRobot16384 import Franka16384
+#from Miletstone2.FrankaRobot16384 import Franka16384
 
 def wait_for_user(prompt="[Press 'n' for next, 'r' to retry, or 'q' to quit]: "):
     """Pause execution and wait for valid user input."""
@@ -221,7 +221,7 @@ class Robot:
         ])
         J = np.zeros((6, self.dof))
         T = np.eye(4)
-        Ts = [T.copy()]            
+        Ts = []            
         for i in range(len(thetas)):
             if(len(dh_parameters)<=0):
                 raise ValueError(f'Invalid size of dh_parameters: {len(dh_parameters)}')
@@ -474,7 +474,7 @@ def main():
     franka.follow_trajectory(traj_2_3)
     franka.follow_trajectory(traj_3_4)
     '''
-    
+    '''
     #flashlight test
     num_steps = int(robot.total_time/0.02)
     q_home = np.array([-0.00608366, -0.95394664, -0.03228957, -2.59348415, -0.00837678,  1.59325033,
@@ -484,7 +484,6 @@ def main():
     q_pick_place = np.array([ 0.00482188,  0.42789345, -0.00878065, -2.25411856, -0.00964446,  2.63687885,
   0.78377835])
     robot.flashlight(q_home, q_above_pick_place, q_pick_place, num_steps) 
-    
     '''
     thetas = np.array([0,0,0,0,0,0,0])
     thetas2 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
@@ -492,7 +491,7 @@ def main():
     analytical_jacobian = robot.compute_jacobian_analytical(thetas)
     print(f"numerical jacobian: {numerical_jacobian}")
     print(f"analytical jacobian: {analytical_jacobian}")
-    '''
+  
     
     
     
