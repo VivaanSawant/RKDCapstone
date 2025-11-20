@@ -313,15 +313,15 @@ class Robot:
             pos1 = T1[:3, 3]
             R1 = T1[:3, :3]
             Pdifference = (pos1 - pos0) / delta # postion
-
-            Rerror = R0.T @ R1 # rototaion
-            dtheta = np.array([
-                Rerror[2, 1] - Rerror[1, 2],
-                Rerror[0, 2] - Rerror[2, 0],
-                Rerror[1, 0] - Rerror[0, 1]
-            ]) / (2 * delta)
-
             J[0:3, i] = Pdifference
+
+            Rerror =  R1 @ R0.T # rototaion
+            skew = (Rerror - Rerror.T) / (2 * delta)
+            dtheta = np.array([
+                skew[2, 1],
+                skew[0, 2],
+                skew[1, 0]
+            ])
             J[3:6, i] = dtheta
         return J
         #raise NotImplementedError("Implement compute_jacobian_numerical")
@@ -485,12 +485,14 @@ def main():
   0.78377835])
     robot.flashlight(q_home, q_above_pick_place, q_pick_place, num_steps) 
     '''
-    thetas = np.array([0,0,0,0,0,0,0])
-    thetas2 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
+    thetas = np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
+    #thetas2 = np.array([-0.05729219, -0.42088033,  0.09961394, -2.63788948,  0.00826903,  2.2058541, 0.73903088])
     numerical_jacobian = robot.compute_jacobian_numerical(thetas, delta=1e-4)
     analytical_jacobian = robot.compute_jacobian_analytical(thetas)
-    print(f"numerical jacobian: {numerical_jacobian}")
-    print(f"analytical jacobian: {analytical_jacobian}")
+    print(f"numerical jacobian: \n\n{numerical_jacobian}")
+    print(f"analytical jacobian:\n\n {analytical_jacobian}")
+    difference = numerical_jacobian - analytical_jacobian
+    print(f"Difference between numerical and analytical Jacobians:\n\n {difference}")
   
     
     
