@@ -436,7 +436,64 @@ class Robot:
         - clamp q within joint limits after each update , see self.JOINT_LIMITS_MIN/MAX an use np.clip(q, min, max)
         - Check convergence: if ||pos_error|| < eps_pos and ||rot_vec|| < eps_rot: break
         """
-        raise NotImplementedError("TODO: Implement numerical IK")
+        q = q_init.copy() # make a new copy
+        
+        targetTranslation = T_target[:3, 3]
+        targetRotation = T_target[:3, :3] # this has colon
+        
+        for _ in range(max_iters): # iteratively go down
+            T_curr = self.forward_kinematics(q)
+            
+            currentTranslation = T_curr[:3, 3]
+            currentRotation = T_curr[:3, :3] # this has colon
+            
+            # Position error = T_target[:3,3] − T_current[:3,3]
+            position_error = targetTranslation - currentTranslation;
+            
+            '''
+            Orientation error:
+            R_err = R_current.T @ R_target
+            Convert to rotation vector using:
+                axis = [R_err[2,1]-R_err[1,2], ...] etc.
+                angle = arccos((trace(R_err)-1)/2)
+                rot_vec = axis * angle
+            '''
+            
+            orientation_error = currentRotation.T @ targetRotation
+            diagonalSum = np.trace(orientation_error)
+            angle = np.arccos(np.clip((diagonalSum - 1) / 2, -1.0, 1.0)) 
+            
+            if angle < 1e-9: # avoids divides by 0
+                rot_vec = np.zeros(3)
+            else:
+                axis = np.array([
+                    orientation_error[2, 1] - orientation_error[1, 2],
+                    orientation_error[0, 2] - orientation_error[2, 0],
+                    orientation_error[1, 0] - orientation_error[0, 1]
+                ]) / (2 * np.sin(angle))
+
+                # rot_vec = axis * angle
+                rot_vec = axis * angle
+            
+            # Check convergence: if ||pos_error|| < eps_pos and ||rot_vec|| < eps_rot: break
+            
+            if np.linalg.norm(position_error) < eps_pos and np.linalg.norm(rot_vec) < eps_rot:
+                break
+            
+            e = np.hstack((position_error, rot_vec))
+            J = self.compute_jacobian_numerical(q)
+            q = q + step_size * (J.T @ e)
+            q = np.clip(q, self.JOINT_LIMITS_MIN, self.JOINT_LIMITS_MAX)
+
+        return q
+
+            
+            
+            
+            
+        
+        
+        # raise NotImplementedError("TODO: Implement numerical IK")
 
 
 
@@ -470,7 +527,51 @@ class Robot:
         - Build T_s = [R_start, p(s)]
         - Call IK at each step (warm start with previous solution)
         """
-        raise NotImplementedError("TODO: Implement draw_line")
+
+        T_start = self.forward_kinematics(q_start)
+        
+        # Extract p_start and R_start (fix orientation!)
+        
+        p_start = T_start[:3, 3]
+        R_start = T_start[:3, :3]
+        
+        # Compute p_goal = p_start + dp   <-- NEW
+        p_goal = p_start + dp
+        
+        # build trajecotry matrix
+        
+        traj = np.zeros((num_steps, 7))
+        traj[0] = q_start.copy()
+        
+        q_prev = q_start.copy() # first IK step
+        
+        for i in range(1, num_steps):
+            s = i / (num_steps - 1)
+        
+            '''
+            Interpolate translation only:
+                p(s) = (1 - s)*p_start + s*p_goal
+            '''
+            ps = (1 - s)*p_start + s*p_goal
+            
+            # Build T_s = [R_start, p(s)]
+            
+            T_s = np.eye(4)
+            T_s[:3, :3] = R_start
+            T_s[:3, 3] = ps
+            
+            q_next = self.inverse_kinematics_numerical(q_prev, T_s, step_size = 0.1,
+                                        max_iters = 2000) # this was taken from the previuos part
+            
+            traj[i] = q_next
+            q_prev = q_next
+            
+        return traj
+            
+        
+        
+        
+        # raise NotImplementedError("TODO: Implement draw_line")
 
 
 
