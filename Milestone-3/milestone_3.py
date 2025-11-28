@@ -66,83 +66,103 @@ class Robot:
     
     def forward_kinematics(self, dh_parameters, thetas):
         """
-        Compute forward kinematics
+        Compute foward kinematics
         
         Your implementation should:
         1. Compute transformation matrices for each frame using DH parameters
         2. Compute end-effector pose
+        
+        Parameters
+        ----------
+        dh_parameters: np.ndarray
+            DH parameters (you can choose to apply the offset to the tool flange, center of gripper, or the pen tip)
+        thetas : np.ndarray
+            All joint angles
+            
+        Returns
+        -------
+        np.ndarray
+            End-effector pose
         """
         if thetas.ndim != 1:
             raise ValueError('Expecting a 1D array of joint angles.')
+
         if thetas.shape[0] != self.dof:
             raise ValueError(f'Invalid number of joints: {thetas.shape[0]} found, expecting {self.dof}')
         
-        frames = np.zeros((4, 4, len(dh_parameters)+1))
-        raise NotImplementedError("Implement forward kinematics")
+        # --------------- BEGIN STUDENT SECTION ------------------------------------------------
+        dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
+        
+        T = np.eye(4) 
+
+        for i in range(len(thetas)):
+            if(len(dh_parameters)<=0):
+                raise ValueError(f'Invalid size of dh_parameters: {len(dh_parameters)}')
+            if(len(thetas)<=0):
+                raise ValueError(f'Invalid size of thetas: {len(thetas)}')
+            a, alpha, d, theta_offset = dh_parameters[i] # getting params
+
+            theta = thetas[i] + theta_offset # getting offset
+
+            cosTheta, sinTheta = np.cos(theta), np.sin(theta) #angles
+            cosAlpha, sinAlpha = np.cos(alpha), np.sin(alpha) #angles
+
+            # modivied form
+            HCurrentToNext = np.array([
+                [cosTheta, -sinTheta, 0.0, a],
+                [sinTheta * cosAlpha, cosTheta * cosAlpha, -sinAlpha, -d * sinAlpha],
+                [sinTheta * sinAlpha, cosTheta * sinAlpha,  cosAlpha,  d * cosAlpha],
+                [0.0, 0.0, 0.0, 1.0]
+            ])
+            
+
+            T = T @ HCurrentToNext
+
+        return T
 
     # ------------------------------------------------------------------------------------------
     # STUDENT EXTENSION: Linear Interpolation Trajectory (Lerp) and Trapezoidal Velocity Profile
     # ----------------------------------------------------------------------------------------
     def compute_joint_trajectory(self, q0, q1, num_steps):
-        """
-        Compute an interpolation-based joint-space trajectory between q0 and q1.
-
-        Your implementation should:
-        1. Interpolate between q0 and q1 to generate intermediate waypoints
-        2. apply to achieve trapezoidal velocity or other smooth motion profiles
-
-        Parameters
-        ----------
-        q0, q1 : np.ndarray
-            Start and goal joint configurations (7x1 each)
-        num_steps : int
-            Number of waypoints to generate
-        
-        Returns
-        -------
-        np.ndarray
-            Trajectory as an array of shape (N, 7) containing interpolated
-            joint angles, where N is the number of waypoints.
-        
-        Notes
-        -----
-        - You may choose:
-            * total_time (e.g., 2.0 s)
-            * number of waypoints (e.g., 20)
-            * acceleration and deceleration durations (e.g., 0.5 s each)
-        - Start simple: use linear interpolation (LERP).
-        - Then extend it with trapezoidal.
-        """
         q0, q1 = np.array(q0), np.array(q1)
-        if q0.shape[0] != self.dof or q1.shape[0] != self.dof:
-            raise ValueError(f"Expecting joint vectors of length {self.dof}")
+        displacement = q1 - q0
 
+        T = self.total_time
+        ta = self.accel_time # 0.5
+        td = self.decel_time # 0.5
+        tc = T - ta - td     # 1.0 (according to writeup)
 
-        
+        # Use endpoint = true
+        time_samples = np.linspace(0, T, num_steps, endpoint=True)
 
-        # ---------------- BEGIN STUDENT SECTION ----------------
-        # TODO: Implement interpolation here
-        # 
-        # You are welcome to try any other interpolation methods as well. 
-        # Belkow is just a simple example to get you started.
+        vmax = 1.0 / (tc + 0.5*ta + 0.5*td)
+        a = vmax / ta
+        d = vmax / td
 
+        traj = np.zeros((num_steps, 7))
 
-        # -------------------------------------------------------
-        # Example (simple linear interpolation):
-        # N = 20
-        # t = np.linspace(0, 1, N)
-        # traj = np.outer(t, q1 - q0) + q0
-        #
-        # To make smoother motion, implement trapezoidal velocity profile:
-        T =  self.total_time
-        accel_time = self.accel_time
-        decel_time = self.decel_time
-        #
-        #
-        # return traj
-        # -------------------------------------------------------
-        
-        raise NotImplementedError("Implement trapezoidal_trajectory")
+        for i, t in enumerate(time_samples):
+
+            if t <= ta:
+                s = 0.5 * a * t**2
+            elif t <= ta + tc:
+                s = 0.5 * vmax * ta + vmax * (t - ta)
+            else:
+                tdec = t - (ta + tc)
+                sbefore = 0.5 * vmax * ta + vmax * tc
+                s = sbefore + vmax * tdec - 0.5 * d * tdec**2
+            traj[i, :] = q0 + s * displacement
+
+        return traj
+
 
 
     def plot_end_effector_trajectory(self, traj):
@@ -160,7 +180,9 @@ class Robot:
 
         #TODO: Compute end-effector positions along the trajectory
         for q in traj:
-            ee_pose = ... # Compute FK using self.forward_kinematics
+            #print(len(traj))
+            #q = traj[i]
+            ee_pose = self.forward_kinematics(self.dh_parameters, q) # Compute FK using self.forward_kinematics
             ee_positions.append(ee_pose[:3, 3])  # Extract XYZ position
 
         ee_positions = np.array(ee_positions)
@@ -174,6 +196,7 @@ class Robot:
         ax.set_title('End-Effector Trajectory')
         plt.savefig('end_effector_trajectory.png')
         plt.show()
+
 
     def plot_joint_pos_and_vel(self,traj, T=4.0):
         traj = np.asarray(traj)
@@ -218,6 +241,9 @@ class Robot:
     # ---------------------------------------------------------------
     # TODO: Compute the Jacobian analytically
     # ---------------------------------------------------------------
+# ---------------------------------------------------------------
+    # TODO: Compute the Jacobian analytically
+    # ---------------------------------------------------------------
     def compute_jacobian_analytical(self, thetas):
         """
         Compute the analytical Jacobian for the given joint configuration.
@@ -246,8 +272,55 @@ class Robot:
         #     ...
         # return J
         # --------------------------------------------------------
+        dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
+        J = np.zeros((6, self.dof))
+        T = np.eye(4)
+        Ts = []            
+        for i in range(len(thetas)):
+            if(len(dh_parameters)<=0):
+                raise ValueError(f'Invalid size of dh_parameters: {len(dh_parameters)}')
+            if(len(thetas)<=0):
+                raise ValueError(f'Invalid size of thetas: {len(thetas)}')
+            a, alpha, d, theta_offset = dh_parameters[i] # getting params
 
-        raise NotImplementedError("Implement compute_jacobian_analytical")
+            theta = thetas[i] + theta_offset # getting offset
+
+            cosTheta, sinTheta = np.cos(theta), np.sin(theta) #angles
+            cosAlpha, sinAlpha = np.cos(alpha), np.sin(alpha) #angles
+
+            # modivied form
+            H_i = np.array([
+                [cosTheta, -sinTheta, 0.0, a],
+                [sinTheta * cosAlpha, cosTheta * cosAlpha, -sinAlpha, -d * sinAlpha],
+                [sinTheta * sinAlpha, cosTheta * sinAlpha,  cosAlpha,  d * cosAlpha],
+                [0.0, 0.0, 0.0, 1.0]
+            ])
+            
+
+            T = T @ H_i
+            Ts.append(T.copy())
+
+        origins = []
+        z_axes = []
+        for T_i in Ts:
+            origins.append(T_i[0:3, 3])
+            z_axes.append(T_i[0:3, 2])
+            
+
+        o_n = origins[-1]
+        for i in range(self.dof):
+            J[0:3, i] = np.cross(z_axes[i], o_n - origins[i])
+            J[3:6, i] = z_axes[i]
+
+        return J
 
     # ---------------------------------------------------------------
     # TODO: Compute the Jacobian numerically
@@ -274,7 +347,7 @@ class Robot:
             raise ValueError(f"Expected {self.dof} joint angles, got {thetas.shape[0]}")
 
         # Compute base pose
-        T0 = ... # Compute FK using self.forward_kinematics
+        T0 = self.forward_kinematics(self.dh_parameters, thetas)
         pos0 = T0[:3, 3]
         R0 = T0[:3, :3]
 
@@ -294,8 +367,25 @@ class Robot:
         #
         # Return the concatenated Jacobian.
         # --------------------------------------------------------
+        for i in range (self.dof):
+            thetasPerturbed = thetas.copy()
+            thetasPerturbed[i] += delta
 
-        raise NotImplementedError("Implement compute_jacobian_numerical")
+            T1 = self.forward_kinematics(self.dh_parameters, thetasPerturbed)
+            pos1 = T1[:3, 3]
+            R1 = T1[:3, :3]
+            Pdifference = (pos1 - pos0) / delta # postion
+            J[0:3, i] = Pdifference
+
+            Rerror =  R1 @ R0.T # rototaion
+            skew = (Rerror - Rerror.T) / (2 * delta)
+            dtheta = np.array([
+                skew[2, 1],
+                skew[0, 2],
+                skew[1, 0]
+            ])
+            J[3:6, i] = dtheta
+        return J
 
 
 ###### TODO MILESTONE 3 EXTENSIONS BELOW ######
