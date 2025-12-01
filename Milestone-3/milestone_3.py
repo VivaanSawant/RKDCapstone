@@ -643,7 +643,20 @@ class Robot:
             - IK converts pose → joint configuration.
             - Collect all q values to form the trajectory.
         """
-        raise NotImplementedError("TODO: Implement draw_curve using curve_fn")
+        traj = np.zeros((num_steps, 7))
+        traj[0] = q_start.copy()
+        
+        q_prev = q_start.copy() 
+        s_vals = np.linspace(0, 1, num_steps)
+        for i, s in enumerate(s_vals):
+            if(i==0):
+                continue
+            T_s = curve_fn(s)
+            q_next = self.inverse_kinematics_numerical(q_prev, T_s, step_size=0.1, max_iters=2000)
+            traj[i] = q_next
+            q_prev = q_next
+        return traj
+        #raise NotImplementedError("TODO: Implement draw_curve using curve_fn")
 
 
 
