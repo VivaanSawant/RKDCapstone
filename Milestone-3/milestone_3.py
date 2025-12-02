@@ -397,9 +397,9 @@ class Robot:
                                      q_init: np.ndarray,       # shape (7,)
                                      T_target: np.ndarray,     # shape (4,4)
                                      step_size: float = 0.1,
-                                     max_iters: int = 2000,
+                                     max_iters: int = 5000,
                                      eps_pos: float = 1e-4,
-                                     eps_rot: float = 1e-3):
+                                     eps_rot: float = 1e-4):
         """
         Numerical IK using iterative updates and the Jacobian.
 
@@ -481,10 +481,10 @@ class Robot:
             if np.linalg.norm(position_error) < eps_pos and np.linalg.norm(rot_vec) < eps_rot:
                 break
             
-            e = np.hstack((position_error, 0.1*rot_vec))
+            e = np.hstack((position_error, 0.01*rot_vec))
             J = self.compute_jacobian_numerical(q)
             q = q + step_size * (J.T @ e)
-            q = np.clip(q, self.JOINT_LIMITS_MIN, self.JOINT_LIMITS_MAX)
+            #q = np.clip(q, self.JOINT_LIMITS_MIN, self.JOINT_LIMITS_MAX)
 
         return q
 
