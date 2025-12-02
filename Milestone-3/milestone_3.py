@@ -702,7 +702,36 @@ class Robot:
             sin_theta = sin(theta)
             q = (sin((1-s)*theta)/sin_theta)*q1 + (sin(s*theta)/sin_theta)*q2
         """
-        raise NotImplementedError("TODO: Implement SLERP")
+        #define small_angle
+        small_angle = 1e-6
+
+        #normalize q1, q2
+        q1 = q1 / np.linalg.norm(q1)
+        q2 = q2 / np.linalg.norm(q2)
+
+        # compute ”dot product” of q0 and q1 to get cos(halfAngle)
+        #cosHalfAngle = q1.a*q2.a + q1.b*q2.b + q1.c*q2.c + q1.d*q2.d
+        cosHalfAngle = np.dot(q1,q2)
+        # interpolating around negative cosine goes the long way around
+        if cosHalfAngle < 0:
+            q2, cosHalfAngle = -q2, -cosHalfAngle
+
+        if cosHalfAngle > (1-small_angle):
+            # USE LERP Fallback
+            q = (1 - s) * q1 + s * q2
+            return q / np.linalg.norm(q)
+        # cos(0) = 1, the quaternions are the same rotation
+        if cosHalfAngle >= 1:
+            return q1
+        # get the half angle, and use Pythagorean to get sin
+        halfAngle = acos(cosHalfAngle)
+        sinHalfAngle = sqrt(1.0 - cosHalfAngle*cosHalfAngle)
+
+        
+        # interpolate
+        p1 = sin((1-s) * halfAngle) / sinHalfAngle
+        p2 = sin(s * halfAngle) / sinHalfAngle;
+        return q1*p1 + q2*p2
 
 
 
