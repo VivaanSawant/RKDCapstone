@@ -766,4 +766,25 @@ class Robot:
             - q_next = inverse_kinematics_numerical(q_prev, T_s)
             - Append each q_next to trajectory
         """
-        raise NotImplementedError("TODO: Implement rotate_torch_trajectory")
+        traj = []
+        T_start = self.forward_kinematics(self.dh_parameters, q_start)
+        R_start = T_start[:3, :3]   # top-left 3×3 block
+        p_start = T_start[:3, 3] 
+        s_vals = np.linspace(0, 1, num_steps)
+        quat_start = rotation_to_quaternion(R_start)
+        quat_goal  = rotation_to_quaternion(R_goal)
+        q_prev = q_start.copy()
+        for i, s in enumerate(s_vals):
+            
+            q_s = slerp(quat_start, quat_goal, s)
+            R_s = quaternion_to_rotation(q_s)
+            T_s = np.eye(4)
+            T_s[:3, :3] = R_s
+            T_s[:3, 3]  = p_start
+
+
+            q_next = self.inverse_kinematics_numerical(q_prev, T_s)
+            
+            traj.append(q_next)
+            q_prev = q_next
+        return np.array(traj)
