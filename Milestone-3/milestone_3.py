@@ -63,6 +63,16 @@ class Robot:
         self.JOINT_LIMITS_MIN = np.array([-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973])
         self.JOINT_LIMITS_MAX =  np.array([ 2.8973,  1.7628,  2.8973, -0.0698,  2.8973,  3.7525,  2.8973])
 
+        self.dh_parameters = np.array([
+            [0.0,       0.0,        0.333,   0.0],
+            [0.0,      -np.pi/2,    0.0,     0.0],
+            [0.0,       np.pi/2,    0.316,   0.0],
+            [0.0825,   np.pi/2,    0.0,     0.0],
+            [-0.0825,   -np.pi/2,    0.384,   0.0],
+            [0.0,       np.pi/2,    0.0,     0.0],
+            [0.088,     np.pi/2,    0.2104, -np.pi/4]
+        ])
+
     
     def forward_kinematics(self, dh_parameters, thetas):
         """
@@ -91,15 +101,6 @@ class Robot:
             raise ValueError(f'Invalid number of joints: {thetas.shape[0]} found, expecting {self.dof}')
         
         # --------------- BEGIN STUDENT SECTION ------------------------------------------------
-        dh_parameters = np.array([
-            [0.0,       0.0,        0.333,   0.0],
-            [0.0,      -np.pi/2,    0.0,     0.0],
-            [0.0,       np.pi/2,    0.316,   0.0],
-            [0.0825,   np.pi/2,    0.0,     0.0],
-            [-0.0825,   -np.pi/2,    0.384,   0.0],
-            [0.0,       np.pi/2,    0.0,     0.0],
-            [0.088,     np.pi/2,    0.2104, -np.pi/4]
-        ])
         
         T = np.eye(4) 
 
@@ -377,7 +378,7 @@ class Robot:
             Pdifference = (pos1 - pos0) / delta # postion
             J[0:3, i] = Pdifference
 
-            Rerror =  R1 @ R0.T # rototaion
+            Rerror =  R0.T @ R1 # rototaion
             skew = (Rerror - Rerror.T) / (2 * delta)
             dtheta = np.array([
                 skew[2, 1],
@@ -442,13 +443,13 @@ class Robot:
         targetRotation = T_target[:3, :3] # this has colon
         
         for _ in range(max_iters): # iteratively go down
-            T_curr = self.forward_kinematics(q)
+            T_curr = self.forward_kinematics(self.dh_parameters, q)
             
             currentTranslation = T_curr[:3, 3]
             currentRotation = T_curr[:3, :3] # this has colon
             
             # Position error = T_target[:3,3] − T_current[:3,3]
-            position_error = targetTranslation - currentTranslation;
+            position_error = targetTranslation - currentTranslation
             
             '''
             Orientation error:
@@ -480,7 +481,7 @@ class Robot:
             if np.linalg.norm(position_error) < eps_pos and np.linalg.norm(rot_vec) < eps_rot:
                 break
             
-            e = np.hstack((position_error, rot_vec))
+            e = np.hstack((position_error, 0.1*rot_vec))
             J = self.compute_jacobian_numerical(q)
             q = q + step_size * (J.T @ e)
             q = np.clip(q, self.JOINT_LIMITS_MIN, self.JOINT_LIMITS_MAX)
@@ -528,7 +529,7 @@ class Robot:
         - Call IK at each step (warm start with previous solution)
         """
 
-        T_start = self.forward_kinematics(q_start)
+        T_start = self.forward_kinematics(self.dh_parameters, q_start)
         
         # Extract p_start and R_start (fix orientation!)
         
