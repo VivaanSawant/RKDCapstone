@@ -483,9 +483,11 @@ class Robot:
             
             e = np.hstack((position_error, 0.01*rot_vec))
             J = self.compute_jacobian_numerical(q)
-            q = q + step_size * (J.T @ e)
+            #q = q + step_size * (J.T @ e)
+            lam = 1e-4   # damping term
+            J_pinv = J.T @ np.linalg.inv(J @ J.T + lam * np.eye(6))
+            q = q + J_pinv @ e
             #q = np.clip(q, self.JOINT_LIMITS_MIN, self.JOINT_LIMITS_MAX)
-
         return q
 
             
