@@ -1,5 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from FrankaRobot16384 import Franka16384
+
+def wait_for_user(prompt="[Press 'n' for next, 'r' to retry, or 'q' to quit]: "):
+    """Pause execution and wait for valid user input."""
+    while True:
+        user_input = input(prompt).strip().lower()
+        if user_input in ['n', 'r', 'q']:
+            return user_input
+        print("Invalid input. Please press 'n', 'r', or 'q'.")
+
 
 # Utility functions for quaternion and rotation matrix conversions
 def rotation_to_quaternion(R):
@@ -135,6 +145,7 @@ class Robot:
     def compute_joint_trajectory(self, q0, q1, num_steps):
         q0, q1 = np.array(q0), np.array(q1)
         displacement = q1 - q0
+        print(displacement)
 
         T = self.total_time
         ta = self.accel_time # 0.5
@@ -655,7 +666,7 @@ class Robot:
             if(i==0):
                 continue
             T_s = curve_fn(s)
-            q_next = self.inverse_kinematics_numerical(q_prev, T_s, step_size=0.1, max_iters=2000)
+            q_next = self.inverse_kinematics_numerical(q_prev, T_s, step_size=0.001, max_iters=2000)
             traj[i] = q_next
             q_prev = q_next
         return traj
@@ -790,3 +801,397 @@ class Robot:
             traj.append(q_next)
             q_prev = q_next
         return np.array(traj)
+    def running_action(self, q):
+        #robot = Robot()
+        franka = Franka16384()
+        franka.follow_trajectory(q)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.follow_trajectory(q)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+        return 
+    
+    def draw_full_vertical_circle(self, q_start, radius=0.03, steps_per_arc=200):
+        """
+        Draw a full 360° vertical circle (Y–Z plane) by stitching 4 smaller arcs.
+        
+        Parameters
+        ----------
+        q_start : np.ndarray, shape (7,)
+            Starting joint configuration.
+        radius : float
+            Radius of the vertical circle (meters).
+        steps_per_arc : int
+            Number of IK steps per 90° arc.
+
+        Returns
+        -------
+        traj_full : np.ndarray, shape (4*steps_per_arc, 7)
+            Joint trajectory covering the full circle.
+        """
+
+        # ---- Helper to generate a Y-Z vertical arc ----
+        def make_arc_fn(R_fixed, p_start, radius, theta0, theta1):
+            return lambda s: np.block([
+                [R_fixed,
+                np.array([
+                    [p_start[0]],                                      # x stays constant
+                    [p_start[1] + radius*np.cos(theta0 + (theta1-theta0)*s)],
+                    [p_start[2] + radius*np.sin(theta0 + (theta1-theta0)*s)]
+                ])],
+                [0,0,0,1]
+            ])
+
+        # ---- Initial FK pose ----
+        T_start = self.forward_kinematics(self.dh_parameters, q_start)
+        p_start = T_start[:3, 3]
+        R_fixed = T_start[:3, :3]
+
+        # ---- Build the 4 arcs ----
+        arcs = []
+        q_prev = q_start
+
+        # Angles for 4×90° arcs
+        theta_pairs = [
+            (0*np.pi/2, 1*np.pi/2),
+            (1*np.pi/2, 2*np.pi/2),
+            (2*np.pi/2, 3*np.pi/2),
+            (3*np.pi/2, 4*np.pi/2)
+        ]
+
+        for theta0, theta1 in theta_pairs:
+            curve_fn = make_arc_fn(R_fixed, p_start, radius, theta0, theta1)
+            traj_arc = self.draw_curve(q_prev, curve_fn, num_steps=steps_per_arc)
+
+            # append this arc
+            arcs.append(traj_arc)
+            q_prev = traj_arc[-1]        # warm-start next arc
+
+        # ---- Combine all arcs ----
+        traj_full = np.vstack(arcs)
+
+        return traj_full
+
+
+
+
+        ### To run it: 
+    '''
+    traj_circle = robot.draw_full_vertical_circle(q_start, radius=0.03, steps_per_arc=200)
+    robot.follow_trajectory(traj_circle)
+    '''
+
+    
+    def picking_flashlight(self, q_home, q_above_pick_place, q_pick_place, q_facing_camera, num_steps):
+        robot = Robot()
+        franka = Franka16384()
+
+        traj_home_above = robot.compute_joint_trajectory( q_home, q_above_pick_place, num_steps)            
+        #open grippers
+        traj_above_pick = robot.compute_joint_trajectory( q_above_pick_place, q_pick_place, num_steps)
+        #close grippers
+        traj_pick_above = robot.compute_joint_trajectory( q_pick_place, q_above_pick_place , num_steps)
+        #traj_above_place = robot.compute_joint_trajectory( q_above_pick_place , q_pick_place, num_steps)
+        
+        traj_above_camera = robot.compute_joint_trajectory(q_home, q_facing_camera, num_steps)
+        '''
+        print("\n[Step 2] Moving to a position above the flashlight...")
+        robot.running_action(traj_home_above)
+        
+        print("\n[Step 3] Opening the grippers ...")
+        franka.open_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.open_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+
+        print("\n[Step 4] Moving to pick up the flashlight...")
+        robot.running_action(traj_above_pick)
+
+        print("\n[Step 5] Closing the grippers...")
+        franka.close_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.close_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+
+        print("\n[Step 6] Moving the flashlight up...")
+        robot.running_action(traj_pick_above)
+        '''
+        #q_facing_camera   
+        print("\n[Step 7] Moving the flashlight to face the camera...")
+        robot.running_action(traj_above_camera)
+
+    
+    def flashlight(self, q_home, q_above_pick_place, q_pick_place, q_facing_camera, q_lineTop, q_lineMiddle, q_lineBottom, q_bin, num_steps):
+        robot = Robot()
+        franka = Franka16384()
+        traj_home_above = robot.compute_joint_trajectory( q_home, q_above_pick_place, num_steps)
+        #open grippers
+        print("\n[Step 1] Moving to home position...")
+        franka.set_config(q_home)
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.set_config(q_home)
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+        #step2
+        robot.picking_flashlight(q_home, q_above_pick_place, q_pick_place, q_facing_camera, num_steps)
+        
+        print("\n[Step 3 Moving the flashlight in the largest circle...")
+        R_fixed = robot.forward_kinematics(self.dh_parameters, q_facing_camera)[:3,:3]
+        p_center = robot.forward_kinematics(self.dh_parameters, q_facing_camera)[:3,3]
+ 
+        print(p_center)
+        radius = 0.032
+
+        curve_fn = lambda s: np.block([
+            [R_fixed, (np.array([[p_center[0]],
+                                 [p_center[1] + radius*np.cos(np.pi*s)-radius],
+                                [p_center[2] + radius*np.sin(np.pi*s)]])).reshape(3,1)],
+            [0, 0, 0, 1]
+        ])
+        
+        traj_curve = robot.draw_curve(q_facing_camera, curve_fn, 100)
+
+        #######
+        robot.running_action(traj_curve)
+
+
+        R_fixed2 = robot.forward_kinematics(self.dh_parameters, (traj_curve[-1]))[:3,:3]
+        p_center2 = robot.forward_kinematics(self.dh_parameters, (traj_curve[-1]))[:3,3]
+ 
+        radius2 = 0.032
+
+        curve_fn2 = lambda s: np.block([
+            [R_fixed2, (np.array([[p_center2[0]],
+                                 [p_center2[1] + radius2*np.cos(np.pi*-1*s)-radius2],
+                                [p_center2[2] + radius2*np.sin(np.pi*-1*s)]])).reshape(3,1)],
+            [0, 0, 0, 1]
+        ])
+        
+        traj_curve2 = robot.draw_curve((traj_curve[-1]), curve_fn2, 100)
+
+        #######
+        robot.running_action(traj_curve2)
+
+        R_fixed3 = robot.forward_kinematics(self.dh_parameters, (traj_curve2[-1]))[:3,:3]
+        p_center3 = robot.forward_kinematics(self.dh_parameters, (traj_curve2[-1]))[:3,3]
+ 
+        radius3 = 0.032
+
+        curve_fn3 = lambda s: np.block([
+            [R_fixed3, (np.array([[p_center3[0]],
+                                 [p_center3[1] + radius3*np.cos(np.pi*s)-radius3],
+                                [p_center3[2] + radius3*np.sin(np.pi*s)]])).reshape(3,1)],
+            [0, 0, 0, 1]
+        ])
+        
+        traj_curve3 = robot.draw_curve((traj_curve2[-1]), curve_fn3, 100)
+
+        #######
+        robot.running_action(traj_curve3)
+
+        #q_lineTop
+        curve_to_line1_traj = robot.compute_joint_trajectory((traj_curve2[-1]), q_lineTop, num_steps)
+        #dp_line1 = 
+        traj_line12 = robot.draw_line(q_lineTop, dp, num_steps)
+        line1_to_line2_traj = robot.compute_joint_trajectory(q_lineTop, q_lineMiddle, num_steps)
+        line2_to_line3_traj = robot.compute_joint_trajectory(q_lineMiddle, q_lineBottom, num_steps)
+        q_bin_traj = robot.compute_joint_trajectory(q_lineBottom, q_bin, num_steps)
+  
+        robot.running_action(q_bin_traj)
+
+        '''
+        print("\n[Step 9] Moving the flashlight to start of the smallest circle...")
+
+
+        print("\n[Step 10] Moving the flashlight in the smallest circle...")
+
+        print("\n[Step 13] Moving the flashlight to the bin...")
+
+        print("\n[Step 11] Dropping flashlight in bin...")
+        franka.open_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.open_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+
+        print("\n[Step 12] Picking up new flashlight...")
+        robot.picking_flashlight(traj_home_above, traj_above_pick, traj_pick_above, traj_above_camera)
+
+        print("\n[Step 13] Moving the flashlight to the medium circle...")
+
+        print("\n[Step 13] Moving the flashlight in the medium circle...")
+
+        print("\n[Step 13] Moving the flashlight to the bin...")
+
+        print("\n[Step 14] Dropping flashlight in bin...")
+        franka.open_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.open_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+
+        print("\n[Step 15] Picking up new flashlight...")
+        robot.picking_flashlight(traj_home_above, traj_above_pick, traj_pick_above, traj_above_camera)
+
+        print("\n[Step 16] Iteratively drawing vertical lines at a rotation at increments of pi/4...")
+        for i in range(8):
+            angle = i * (np.pi / 4)
+            R_goal = np.array([
+                [np.cos(angle), -np.sin(angle), 0],
+                [np.sin(angle),  np.cos(angle), 0],
+                [0,              0,             1]
+            ])
+            traj_rotate = robot.rotate_torch_trajectory(q_facing_camera, R_goal, num_steps, direction="up")
+            robot.running_action(traj_rotate)
+            print(f"\n[Step 16.{i+1}] Completed rotation to angle {angle} radians.")
+
+        print("\n[Step 13] Moving the flashlight to the bin...")
+
+        print("\n[Step 17] Dropping flashlight in bin...")
+        franka.open_gripper()
+        while True:
+            user_choice = wait_for_user("Press 'n' to continue to place or 'r' to retry move: ")
+            if user_choice == 'n':
+                break
+            elif user_choice == 'r':
+                print("[Retrying move to place pose...]")
+                franka.open_gripper()
+            elif user_choice == 'q':
+                print("[Exiting program]")
+                return
+        return
+    '''
+
+                
+    '''
+    # 2. Choose a displacement dp (move 10 cm along z)
+        dp = np.array([0.0, 0.0, -0.01])     
+
+        # 3. Call draw_line
+        traj_line = robot.draw_line(q_facing_camera, dp, num_steps)
+
+        print(traj_line[-1])
+        R_fixed = robot.forward_kinematics(self.dh_parameters, traj_line[-1])[:3,:3]
+        p_center = robot.forward_kinematics(self.dh_parameters, traj_line[-1])[:3,3]
+ 
+        print(p_center)
+        radius = 0.01
+
+        curve_fn = lambda s: np.block([
+            [R_fixed, (np.array([[p_center[0] + radius*np.cos(np.pi*s)-radius],
+                                [p_center[1] + radius*np.sin(np.pi*s)],
+                                [p_center[2]]])).reshape(3,1)],
+            [0, 0, 0, 1]flashlight_far
+        ])
+        print(curve_fn(0))
+        traj_curve = robot.draw_curve(traj_line[-1 ], curve_fn, 100)
+        
+
+        robot.picking_flashlight(traj_home_above, traj_above_pick, traj_pick_above, traj_above_camera)
+    '''
+
+def main():
+    robot = Robot()   # assuming your class is named Robot()
+
+    #flashlight test
+    num_steps = int(robot.total_time/0.02)
+    
+    q_home = np.array([-0.00608366, -0.95394664, -0.03228957, -2.59348415, -0.00837678,  1.59325033,
+  0.76390718])
+    q_above_flashlight = np.array([-0.18845576,  0.32761044, -0.16718853, -2.13337842,  0.13734175,  2.48372093,
+  0.32061945])
+    q_pick_place = np.array([ 0.00482188,  0.42789345, -0.00878065, -2.25411856, -0.00964446,  2.63687885,
+  0.78377835])
+    
+    # 1. Choose a starting configuration
+    q_curvesStart = np.array([ 0.15653988, -0.39924142,  0.04378931, -2.79378656,  0.1100186,   3.45262439, 0.85302329])
+    q_lineTop = np.array([ 0.16016253, -0.21508658,  0.03883015, -2.79192153,  0.11008639,  3.45258017, 0.85303423])
+    q_lineMiddle = np.array([ 0.17390262, -0.0620786,   0.04324487, -2.7910104,   0.11009168,  3.45224358, 0.85364052])
+    q_lineBottom = np.array([ 0.17099069,  0.05200516,  0.03982096, -2.79224346,  0.11008882,  3.45220808, 0.85302305])
+    #[-0.29728245, -0.49473546,  0.08392697, -2.81276122, -0.34758527,  3.74226282, 1.07860857]
+
+    flashlight_far = np.array([-0.15362715,  0.76493927, -0.39913538, -1.79927101, -0.19962317,  1.91157644,
+  0.27320951])
+
+    flashlight_middle = np.array(
+    [-0.09710638,  0.64428856, -0.33450619, -1.94583503, -0.06465234,  2.10779242,
+  0.43122558])
+
+    flashlight_near = np.array([-0.23963659,  1.00373385, -0.26781676, -1.28161212, -0.19933129,  1.59947069,
+  0.31113862])
+
+    q_bin = np.array([ 0.16470852,  0.35613679,  0.0911824,  -2.26084658,  0.13332707,  2.66035794,
+  0.84524366])
+
+
+    robot.flashlight(q_home, q_drawStart, flashlight_middle, q_curvesStart, q_lineTop, q_lineMiddle, q_lineBottom,  q_bin, num_steps)
+
+
+    
+
+if __name__ == '__main__':
+    main()
+
+
+'''
+
+lowest to highest  
+  line 1: [ 0.17099069  0.05200516  0.03982096 -2.79224346  0.11008882  3.45220808
+  0.85302305]
+
+  start curve: [ 0.17390262 -0.0620786   0.04324487 -2.7910104   0.11009168  3.45224358
+  0.85364052]
+
+  line 2: [ 0.16016253 -0.21508658  0.03883015 -2.79192153  0.11008639  3.45258017
+  0.85303423]
+
+    line 3: [ 0.15653988 -0.39924142  0.04378931 -2.79378656  0.1100186   3.45262439
+  0.85302329]
+
+
+'''
+"""
+1. make a circle of size 10cm in the XY plane at Z=0 with one color
+2. make a circle of size 7cm in the YZ plane at X=0 with another color
+3. make a circle of size 5cm in the XZ plane at Y=0 with a third color
+4. go to the center and move in a straight line to the each of the three circles
+   at increments of pi/4 
+"""
