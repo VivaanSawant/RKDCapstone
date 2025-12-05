@@ -815,27 +815,59 @@ class Robot:
         return 
     
     
-    def switch_flashlight(self, flashlightpos, above_flashlight, start_spot, next_spot, q_bin, num_steps):
+    def switch_flashlight(self, flashlightpos, above_flashlight,
+                        intermediate_place_config, repick_config,
+                        next_spot, q_bin, num_steps):
+
         robot = Robot()
         franka = Franka16384()
 
-        traj_to_bin = robot.compute_joint_trajectory(franka.get_joints(), q_bin, num_steps) 
+        # 1. Move to bin
+        traj_to_bin = robot.compute_joint_trajectory(franka.get_joints(), q_bin, num_steps)
         robot.running_action(traj_to_bin)
         franka.open_gripper()
 
+        # 2. Move above flashlight
+        traj_to_above = robot.compute_joint_trajectory(franka.get_joints(), above_flashlight, num_steps)
+        robot.running_action(traj_to_above)
 
-        traj_to_above = robot.compute_joint_trajectory(franka.get_joints(), above_flashlight, num_steps) 
-        robot.running_action(traj_to_above)  
-
+        # 3. Descend and pick
         traj_to_pick = robot.compute_joint_trajectory(franka.get_joints(), flashlightpos, num_steps)
-        robot.running_action(traj_to_pick)  
-        franka.close_gripper()   
+        robot.running_action(traj_to_pick)
+        franka.close_gripper()
 
-        traj_flashlight_to_above = robot.compute_joint_trajectory( franka.get_joints(), above_flashlight, num_steps)
-        robot.running_action(traj_flashlight_to_above)
+        # 4. Lift
+        traj_lift = robot.compute_joint_trajectory(franka.get_joints(), above_flashlight, num_steps)
+        robot.running_action(traj_lift)
 
-        traj_flashlight_to_next = robot.compute_joint_trajectory( franka.get_joints(), next_spot, num_steps)
-        robot.running_action(traj_flashlight_to_next)
+        # 5. Move to intermediate placement location
+        traj_to_place = robot.compute_joint_trajectory(franka.get_joints(), intermediate_place_config, num_steps)
+        robot.running_action(traj_to_place)
+
+        # 6. PLACE (you will define the orientation)
+        franka.open_gripper()
+
+        # 7. Lift after placing
+        traj_lift_after_place = robot.compute_joint_trajectory(franka.get_joints(), above_flashlight, num_steps)
+        robot.running_action(traj_lift_after_place)
+
+        # 8. Move to re-pick configuration (you define this joint array)
+        traj_to_repick = robot.compute_joint_trajectory(franka.get_joints(), repick_config, num_steps)
+        robot.running_action(traj_to_repick)
+
+        # 9. Descend and re-grasp
+        traj_down_repick = robot.compute_joint_trajectory(franka.get_joints(), flashlightpos, num_steps)
+        robot.running_action(traj_down_repick)
+        franka.close_gripper()
+
+        # 10. Lift
+        traj_lift2 = robot.compute_joint_trajectory(franka.get_joints(), above_flashlight, num_steps)
+        robot.running_action(traj_lift2)
+
+        # 11. Move to next trajectory start (line or curve)
+        traj_to_next = robot.compute_joint_trajectory(franka.get_joints(), next_spot, num_steps)
+        robot.running_action(traj_to_next)
+
         
 
     def curve_line_draw(self, startpos, curve_direction, line_start, num_steps):
@@ -889,15 +921,35 @@ class Robot:
                 return
 
         #step2 switch_flashlight(self, flashlightpos, above_flashlight, start_spot, next_spot, q_bin, num_steps):
-        robot.switch_flashlight(flashlight_far, q_above_pick_place, q_home, q_curveStart, q_bin, num_steps)
+        robot.switch_flashlight(
+            flashlight_far,
+            q_above_pick_place,
+            q_mid1,
+            q_repick1,
+            q_curveStart,
+            q_bin,
+            num_steps
+        )
+
 
         curve_end1, line_end1 = robot.curve_line_draw(q_curveStart, 1, q_lineTop, num_steps)
 
-        robot.switch_flashlight(flashlight_middle, q_above_pick_place, line_end1, curve_end1, q_bin, num_steps)
+        robot.switch_flashlight(flashlight_middle, 
+                        q_above_pick_place, 
+                        line_end1,      # intermediate
+                        curve_end1,     # next
+                        q_bin, 
+                        num_steps)
 
         curve_end2, line_end2 = robot.curve_line_draw(curve_end1, -1, q_lineMiddle, num_steps)
 
-        robot.switch_flashlight(flashlight_far, q_above_pick_place, line_end2, curve_end2, q_bin, num_steps)
+        robot.switch_flashlight(flashlight_far,
+                        q_above_pick_place,
+                        line_end2,      # intermediate
+                        curve_end2,     # next
+                        q_bin,
+                        num_steps)
+
 
         curve_end3, line_end3 = robot.curve_line_draw(curve_end2, 1, q_lineBottom, num_steps)
 
@@ -931,10 +983,25 @@ def main():
     flashlight_near = np.array([-0.12412671,  0.56426599, -0.29365721, -2.22047497,  0.0105208,   3.05099318,  0.79809132])
 
     q_bin = np.array([ 0.16470852,  0.35613679,  0.0911824,  -2.26084658,  0.13332707,  2.66035794, 0.84524366])
+    
+    q_mid1 = np.array([]);
+    q_repick1 = np.array([]);
 
     #MAIN:
-    robot.flashlight(q_home, q_above_flashlight, q_lineTop, q_lineMiddle, q_lineBottom, flashlight_far,
-    flashlight_far, flashlight_far, q_curveStart, q_bin, num_steps)
+    robot.flashlight(
+        q_home,
+        q_above_flashlight,
+        q_lineTop,
+        q_lineMiddle,
+        q_lineBottom,
+        flashlight_far,
+        flashlight_middle,
+        flashlight_near,
+        q_curveStart,
+        q_bin,
+        num_steps
+    )
+
 
     
 
